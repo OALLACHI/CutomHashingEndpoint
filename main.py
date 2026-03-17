@@ -10,6 +10,12 @@ SALT_PATTERN = re.compile(r"^[A-Za-z0-9./+]+$")
 class HashResponse(BaseModel):
     hashedPassword: str
 
+def add_base64_padding(value: str) -> str:
+    remainder = len(value) % 4
+    if remainder == 0:
+        return value
+    return value + ("=" * (4 - remainder))
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -27,23 +33,22 @@ def hash_password(
                 detail=f"Invalid salt charset: [{pwHashSalt}]"
             )
 
-        # Fix CDC transformation
+        # Workaround CDC: parfois . arrive transformé en +
         normalized_salt = pwHashSalt.replace("+", ".")
 
-        # Generate sha256crypt
         mcf_value = sha256_crypt.using(
             rounds=pwHashRounds,
             salt=normalized_salt
         ).hash(password)
 
-        # Extract hash only
-        # $5$rounds=7000$salt$HASH
+        # Format: $5$rounds=7000$salt$HASH
         hash_only = mcf_value.split("$")[-1]
 
-        # 👉 Convert to Base64-like format (CDC expectation)
-        base64_hash = hash_only.replace(".", "+")
+        # Adaptation vers format base64-style attendu par CDC
+        base64_style_hash = hash_only.replace(".", "+")
+        base64_style_hash = add_base64_padding(base64_style_hash)
 
-        return HashResponse(hashedPassword=base64_hash)
+        return HashResponse(hashedPassword=base64_style_hash)
 
     except HTTPException:
         raise
