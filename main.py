@@ -13,7 +13,7 @@ class HashRequest(BaseModel):
     rounds: int = Field(..., ge=1000, le=999999999)
 
 class HashResponse(BaseModel):
-    mcf: str
+    hashedPassword: str
 
 @app.get("/health")
 def health():
@@ -34,7 +34,7 @@ def hash_password(req: HashRequest):
             salt=req.salt
         ).hash(req.password)
 
-        return HashResponse(mcf=mcf_value)
+        return HashResponse(hashedPassword=mcf_value)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
