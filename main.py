@@ -1,16 +1,11 @@
 import re
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from fastapi import FastAPI, HTTPException, Query
+from pydantic import BaseModel
 from passlib.hash import sha256_crypt
 
-app = FastAPI(title="MCF SHA256-Crypt Generator")
+app = FastAPI(title="SAP CDC Custom Hash Endpoint")
 
 SALT_PATTERN = re.compile(r"^[A-Za-z0-9./]+$")
-
-class HashRequest(BaseModel):
-    password: str = Field(..., min_length=1)
-    salt: str = Field(..., min_length=1, max_length=16)
-    rounds: int = Field(..., ge=1000, le=999999999)
 
 class HashResponse(BaseModel):
     hashedPassword: str
@@ -19,20 +14,23 @@ class HashResponse(BaseModel):
 def health():
     return {"status": "ok"}
 
-@app.post("/hash", response_model=HashResponse)
-def hash_password(req: HashRequest):
-
-    if not SALT_PATTERN.match(req.salt):
+@app.get("/hash", response_model=HashResponse)
+def hash_password(
+    password: str = Query(..., min_length=1),
+    pwHashSalt: str = Query(..., min_length=1, max_length=16),
+    pwHashRounds: int = Query(..., ge=1000, le=999999999)
+):
+    if not SALT_PATTERN.match(pwHashSalt):
         raise HTTPException(
             status_code=400,
-            detail="Salt must contain only [A-Za-z0-9./]"
+            detail="pwHashSalt must contain only [A-Za-z0-9./]"
         )
 
     try:
         mcf_value = sha256_crypt.using(
-            rounds=req.rounds,
-            salt=req.salt
-        ).hash(req.password)
+            rounds=pwHashRounds,
+            salt=pwHashSalt
+        ).hash(password)
 
         return HashResponse(hashedPassword=mcf_value)
 
