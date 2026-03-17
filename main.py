@@ -32,7 +32,12 @@ def hash_password(
             salt=pwHashSalt
         ).hash(password)
 
-        return HashResponse(hashedPassword=mcf_value)
+        # 👉 Extraire uniquement le hash final
+        # format: $5$rounds=7000$salt$HASH
+        parts = mcf_value.split("$")
+        hashed_only = parts[-1]
+
+        return HashResponse(hashedPassword=hashed_only)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
